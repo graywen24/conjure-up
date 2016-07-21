@@ -16,6 +16,7 @@ class BootstrapWaitView(WidgetWrap):
 
     def __init__(self, app, message):
         self.message = Text(message, align="center")
+        self.app = app
         self.loading_boxes = [Text(x) for x in self.load_attributes]
         super().__init__(self._build_node_waiting())
 
@@ -27,6 +28,7 @@ class BootstrapWaitView(WidgetWrap):
             i.set_text(
                 self.load_attributes[random.randrange(
                     len(self.load_attributes))])
+        self.log_txt.set_text("".join(self.app.bootstrap.output[-10:]))
 
     def _build_node_waiting(self):
         """ creates a loading screen if nodes do not exist yet """
@@ -41,5 +43,7 @@ class BootstrapWaitView(WidgetWrap):
         _boxes.append(('weight', 1, Text('')))
         _boxes = Columns(_boxes)
 
-        return Filler(Pile(text + [_boxes]),
+        self.log_txt = Text("")
+
+        return Filler(Pile(text + [_boxes, Padding.center_50(self.log_txt)]),
                       valign="middle")

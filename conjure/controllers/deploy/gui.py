@@ -53,6 +53,9 @@ class DeployController:
                            'isComplete': True})
 
     def _pre_deploy_done(self, future):
+
+        if future.cancelled():
+            return
         try:
             result = json.loads(future.result().stdout.decode())
         except AttributeError:
@@ -65,6 +68,7 @@ class DeployController:
                         future.result())))
 
         app.log.debug("pre_deploy_done: {}".format(result))
+
         if result['returnCode'] > 0:
             utils.pollinate(app.session_id, 'E003')
             return self._handle_exception('E003', Exception(

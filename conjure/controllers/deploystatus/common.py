@@ -1,11 +1,14 @@
 from conjure.app_config import app
 from conjure import utils
+from conjure import async
 from subprocess import CalledProcessError
 import json
 import os
-import time
 
 
+import q
+
+@q.t
 def wait_for_applications(script, msg_cb):
     """ Processes a 00_deploy-done.sh to verify if applications are available
 
@@ -20,6 +23,7 @@ def wait_for_applications(script, msg_cb):
             rerun = True
             count = 0
             while rerun:
+                q.q('running ', script)
                 sh = utils.run_script(script)
                 if sh.returncode != 0:
                     app.log.error("error running {}:\n{}".format(script,
@@ -37,7 +41,9 @@ def wait_for_applications(script, msg_cb):
                         "Failure in deploy done: {}".format(result['message']))
                     raise Exception(result['message'])
                 if not result['isComplete']:
-                    time.sleep(5)
+                    q.q('not complete, sleeping')
+                    async.sleep(5)
+                    q.q('awake!')
                     if count == 0:
                         msg_cb("{}, please wait".format(
                             result['message']))

@@ -8,7 +8,7 @@ bootstrap = SimpleNamespace(
     running=False,
 
     # Attached output
-    output=None
+    output=[]
 )
 
 app = SimpleNamespace(

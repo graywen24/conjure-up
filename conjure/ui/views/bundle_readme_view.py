@@ -76,6 +76,8 @@ class BundleReadmeView(WidgetWrap):
             readme_text_f)
 
     def _update_readme_on_main_thread(self, readme_text_f):
+        if readme_text_f.cancelled():
+            return
         self.readme_w.set_text(readme_text_f.result().splitlines())
         self._invalidate()
 

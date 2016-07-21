@@ -3,6 +3,9 @@ import asyncio
 import uuid
 import logging
 
+from conjure import async
+
+
 log = logging.getLogger('eventloop')
 
 
@@ -30,16 +33,18 @@ class EventLoop:
         extra_opts['screen'].set_terminal_properties(colors=256)
         extra_opts['screen'].reset_default_terminal_palette()
         extra_opts.update(**kwargs)
-        evl = asyncio.get_event_loop()
+        cls.evl = asyncio.get_event_loop()
         cls.loop = urwid.MainLoop(ui, palette,
-                                  event_loop=urwid.AsyncioEventLoop(loop=evl),
+                                  event_loop=urwid.AsyncioEventLoop(loop=cls.evl),
                                   pop_ups=True,
                                   **extra_opts)
 
     @classmethod
     def exit(cls, err=0):
         log.info("Stopping eventloop")
-        raise urwid.ExitMainLoop()
+        cls.loop.stop()
+        async.shutdown()
+        cls.evl.call_soon(cls.evl.stop)
 
     @classmethod
     def redraw_screen(cls):
@@ -80,8 +85,9 @@ class EventLoop:
         """ Run eventloop
         """
         try:
-            cls.loop.run()
+            cls.loop.start()
+            asyncio.get_event_loop().run_forever()
         except:
             log.exception("Exception in ev.run():")
-            raise
-        return
+            cls.loop.stop()
+

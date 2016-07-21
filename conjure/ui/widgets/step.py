@@ -28,6 +28,8 @@ class StepWidget(WidgetWrap):
         self.title = Text(('info_minor', step_model.title))
         self.description = Text(('info_minor', step_model.description))
         self.result = Text(step_model.result)
+        self.output = []
+        self.output_w = Text("")
         self.icon = Text(("info_minor", "\N{BALLOT BOX}"))
 
         self.additional_input = []
@@ -82,6 +84,9 @@ class StepWidget(WidgetWrap):
             # for that error type above.
             self.icon.set_text(("error_icon", "?"))
 
+    def update(self):
+        self.output_w.set_text("".join(self.output[-5:]))
+            
     @property
     def current_button_index(self):
         """ Returns the pile index where the button is located
@@ -111,7 +116,8 @@ class StepWidget(WidgetWrap):
                     ('fixed', 3, self.icon),
                     self.description,
                 ], dividechars=1
-            )]
+            ),
+            self.output_w]
         )
 
     def generate_additional_input(self):

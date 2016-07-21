@@ -1,6 +1,8 @@
 from conjure.app_config import app
 from conjure.api.models import model_info
-from conjure import utils
+#from conjure import utils
+from conjure.juju import JUJU_ASYNC_QUEUE
+from conjure import async
 import json
 import os
 from collections import deque
@@ -75,8 +77,15 @@ def do_step(step_model, step_widget, message_cb, gui=False):
     if gui:
         step_widget.set_icon_state('waiting')
     app.log.debug("Executing script: {}".format(step_model.path))
-    sh = utils.run_script(step_model.path)
-    result = json.loads(sh.stdout.decode('utf8'))
+    #sh = utils.run_script(step_model.path)
+    #result = json.loads(sh.stdout.decode('utf8'))
+    f = async.submit_shell_cmd(step_model.path,
+                               step_widget.output,
+                               queue_name=JUJU_ASYNC_QUEUE)
+    return f
+
+def other_stuff():
+    result = f.result().stdout.decode()
     if result['returnCode'] > 0:
         app.log.error(
             "Failure in step: {}".format(result['message']))
@@ -84,13 +93,7 @@ def do_step(step_model, step_widget, message_cb, gui=False):
     message_cb("Done: {}".format(step_model.title))
     step_model.result = result['message']
     if gui:
-        step_widget.set_icon_state('active')
-        step_widget.set_description(
-            "{}\n\nResult: {}".format(
-                step_model.description,
-                step_model.result),
-            'info_context')
-        return (step_model, step_widget)
+        pass
     else:
         message_cb("Result: {}".format(step_model.result))
         return (step_model, None)

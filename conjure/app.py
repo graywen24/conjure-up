@@ -18,6 +18,7 @@ from ubuntui.ev import EventLoop
 from ubuntui.palette import STYLES
 
 import argparse
+import asyncio
 import json
 import os
 import os.path as path
@@ -25,6 +26,8 @@ import sys
 import uuid
 import yaml
 import re
+
+import q
 
 
 def parse_options(argv):
@@ -63,7 +66,6 @@ def parse_options(argv):
 
 def unhandled_input(key):
     if key in ['q', 'Q']:
-        async.shutdown()
         EventLoop.exit(0)
 
 
@@ -151,6 +153,7 @@ def apply_proxy():
 
 
 def main():
+    q.q("************ START")
     opts = parse_options(sys.argv[1:])
     spell = os.path.basename(os.path.abspath(opts.spell))
 
@@ -306,3 +309,4 @@ def main():
                              unhandled_input=unhandled_input)
         EventLoop.set_alarm_in(0.05, _start)
         EventLoop.run()
+        asyncio.get_event_loop().close()

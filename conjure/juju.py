@@ -1,7 +1,8 @@
 """ Juju helpers
 """
+
 from concurrent import futures
-from functools import wraps, partial
+from functools import wraps
 import os
 import sys
 from subprocess import (run, PIPE, DEVNULL, CalledProcessError, Popen,
@@ -16,6 +17,7 @@ from conjure.app_config import app
 
 import macumba
 from macumba.v2 import JujuClient
+
 
 JUJU_ASYNC_QUEUE = "juju-async-queue"
 
@@ -101,18 +103,7 @@ def login(force=False):
     this.IS_AUTHENTICATED = True  # noqa
 
 
-def bootstrap(controller, cloud, series="xenial", credential=None):
-    """ Performs juju bootstrap
-
-    If not LXD pass along the newly defined credentials
-
-    Arguments:
-    controller: name of your controller
-    cloud: name of local or public cloud to deploy to
-    series: define the bootstrap series defaults to xenial
-    log: application logger
-    credential: credentials key
-    """
+def _get_bootstrap_cmd(controller, cloud, series, credential):
     cmd = "juju bootstrap {} {} --upload-tools " \
           "--config image-stream=daily ".format(
               controller, cloud)
@@ -135,6 +126,22 @@ def bootstrap(controller, cloud, series="xenial", credential=None):
     if cloud != "localhost":
         cmd += "--credential {}".format(credential)
     app.log.debug("bootstrap cmd: {}".format(cmd))
+    return cmd
+
+
+def bootstrap(controller, cloud, series="xenial", credential=None):
+    """ Performs juju bootstrap
+
+    If not LXD pass along the newly defined credentials
+
+    Arguments:
+    controller: name of your controller
+    cloud: name of local or public cloud to deploy to
+    series: define the bootstrap series defaults to xenial
+    log: application logger
+    credential: credentials key
+    """
+    cmd = _get_bootstrap_cmd(controller, cloud, series, credential)
     try:
         p = Popen(cmd, shell=True, stdout=DEVNULL, stderr=PIPE)
         while p.poll() is None:
@@ -154,14 +161,13 @@ def bootstrap(controller, cloud, series="xenial", credential=None):
         raise e
 
 
-def bootstrap_async(controller, cloud, credential=None, exc_cb=None):
+def bootstrap_async(controller, cloud, series='xenial',
+                    credential=None, exc_cb=None):
     """ Performs a bootstrap asynchronously
     """
-    return async.submit(partial(bootstrap,
-                                controller=controller,
-                                cloud=cloud,
-                                credential=credential), exc_cb,
-                        queue_name=JUJU_ASYNC_QUEUE)
+    cmd = _get_bootstrap_cmd(controller, cloud, series, credential)
+    return async.submit_shell_cmd(cmd, app.bootstrap.output,
+                                  queue_name=JUJU_ASYNC_QUEUE)
 
 
 def model_available():

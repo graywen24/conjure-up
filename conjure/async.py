@@ -3,11 +3,10 @@ Provides async operations for various api calls and other non-blocking
 work.
 """
 
+import asyncio
 import logging
 from collections import defaultdict
-from concurrent.futures import ThreadPoolExecutor
-from threading import Event
-import time
+
 log = logging.getLogger("async")
 
 
@@ -15,38 +14,81 @@ class ThreadCancelledException(Exception):
     """Exception meaning intentional cancellation"""
 
 
-ShutdownEvent = Event()
+ShutdownEvent = asyncio.Event()
 
-_queues = defaultdict(lambda: ThreadPoolExecutor(1))
+_locks = defaultdict(lambda: asyncio.Lock())
 DEFAULT_QUEUE = "DEFAULT"
 
+_all_tasks = []
 
-def submit(func, exc_callback, queue_name="DEFAULT"):
-    def cb(cb_f):
-        e = cb_f.exception()
-        if e:
-            exc_callback(e)
-    if ShutdownEvent.is_set():
-        log.debug("ignoring async.submit due to impending shutdown.")
-        return
-    f = _queues[queue_name].submit(func)
-    f.add_done_callback(cb)
-    return f
+
+def submit(func, exc_callback, queue_name=DEFAULT_QUEUE):
+    task = asyncio.ensure_future(submit_func(func, exc_callback, queue_name))
+    _all_tasks.append(task)
+    return task
+
+
+@asyncio.coroutine
+def submit_func(func, exc_callback, queue_name):
+    with (yield from _locks[queue_name]):
+
+        if ShutdownEvent.is_set():
+            return
+        try:
+            r = func()
+            return r
+        except Exception as e:
+            if exc_callback:
+                exc_callback(e)
+
+
+def submit_shell_cmd(cmd, output_list, queue_name=DEFAULT_QUEUE):
+    task = asyncio.ensure_future(submit_shell_coroutine(cmd,
+                                                        output_list,
+                                                        queue_name))
+    _all_tasks.append(task)
+    return task
+
+
+@asyncio.coroutine
+def read_lines_from_stream(stream, output_list, tag):
+    while True:
+        line = yield from stream.readline()
+        if not line:
+            break
+        output_list.append(tag + line.decode())
+
+
+@asyncio.coroutine
+def submit_shell_coroutine(cmd, output_list, queue_name):
+
+    with (yield from _locks[queue_name]):
+        if ShutdownEvent.is_set():
+            return
+        create = asyncio.create_subprocess_shell(
+            cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE)
+
+        proc = yield from create
+
+        yield from asyncio.gather(
+            read_lines_from_stream(proc.stdout, output_list, '  '),
+            read_lines_from_stream(proc.stderr, output_list, '* '))
+
+        yield from proc.wait()
+    return proc
 
 
 def shutdown():
     ShutdownEvent.set()
-    for queue in _queues.values():
-        queue.shutdown(wait=False)
+    for t in _all_tasks:
+        t.cancel()
 
 
-def sleep_until(s):
-    """returns after 's' seconds.
-    If the ShutdownEvent is raised before the wait is over,
-    raises a ThreadCancelledException.
-    """
-    start = time.time()
-    while not ShutdownEvent.wait(timeout=.1):
-        if time.time() - start >= s:
-            return True
-    raise ThreadCancelledException("Thread cancelled while sleeping")
+def sleep(s):
+    f = asyncio.ensure_future(asyncio.sleep(s))
+    _all_tasks.append(f)
+    if f.cancelled():
+        return
+    f.result()

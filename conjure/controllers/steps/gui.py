@@ -7,6 +7,8 @@ from conjure import utils
 from conjure import controllers
 from conjure.models.step import StepModel
 from . import common
+
+import asyncio
 import os.path as path
 import os
 import yaml
@@ -32,11 +34,19 @@ class StepsController:
         return app.ui.show_exception_message(exc)
 
     def get_result(self, future):
+        if future.cancelled():
+            return
         try:
             step_model, step_widget = future.result()
             app.log.debug("Storing step result for: {}={}".format(
                 step_model.title, step_model.result))
             self.results[step_model.title] = step_model.result
+            step_widget.set_icon_state('active')
+            step_widget.set_description(
+                "{}\n\nResult: {}".format(
+                    step_model.description,
+                    step_model.result),
+                'info_context')
 
         except:
             return self.__handle_exception('E002', future.exception())
@@ -117,13 +127,18 @@ class StepsController:
 
         except Exception as e:
             return self.__handle_exception('E002', e)
-
+        self.all_steps = list(steps)
         app.ui.set_header(
             title="Additional Application Configuration",
             excerpt="Please finish the installation by configuring your "
             "application with these steps.")
         app.ui.set_body(self.view)
         app.ui.set_footer('')
+        self.update()
 
-
+    def update(self):
+        for step in self.all_steps:
+            step.update()
+        asyncio.get_event_loop().call_later(2, self.update)
+        
 _controller_class = StepsController

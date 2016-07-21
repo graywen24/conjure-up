@@ -160,6 +160,8 @@ class ServiceWalkthroughView(WidgetWrap):
             readme_text_f)
 
     def _update_readme_on_main_thread(self, readme_text_f):
+        if readme_text_f.cancelled():
+            return
         rls = readme_text_f.result().splitlines()
         rls = [l for l in rls if not l.startswith("#")]
         nrls = []

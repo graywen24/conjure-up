@@ -26,6 +26,8 @@ class NewCloudController:
 
     def __handle_bootstrap_done(self, future):
         app.log.debug("handle bootstrap")
+        if future.cancelled():
+            return
         result = future.result()
         if result.returncode < 0:
             # bootstrap killed via user signal, we're quitting
@@ -92,6 +94,8 @@ class NewCloudController:
                 return self.__handle_exception(e)
 
     def __post_bootstrap_done(self, future):
+        if future.cancelled():
+            return
         try:
             result = json.loads(future.result().decode('utf8'))
         except Exception as e:

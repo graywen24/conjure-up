@@ -10,6 +10,7 @@ from . import common
 import os.path as path
 import os
 
+import q
 
 class DeployStatusController:
     def __init__(self):
@@ -34,8 +35,10 @@ class DeployStatusController:
                                       app.ui.set_footer),
                               partial(self.__handle_exception, 'ED'),
                               queue_name=juju.JUJU_ASYNC_QUEUE)
+        q.q('submitted wait_for, got', future)
         future.add_done_callback(self.finish)
 
+    @q.t
     def finish(self, future):
         if not future.exception():
             return controllers.use('steps').render()
