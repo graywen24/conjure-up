@@ -55,4 +55,7 @@ app = SimpleNamespace(
     headless=False,
 
     # Remote endpoint type, vcs, charmstore, charmstore-direct, direct
-    fetcher=None)
+    fetcher=None,
+
+    # data dir
+    data_dir=None)

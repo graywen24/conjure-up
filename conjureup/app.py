@@ -76,36 +76,6 @@ def _start(*args, **kwargs):
         controllers.use('clouds').render()
 
 
-def has_valid_juju():
-    """ Checks for valid Juju version
-    """
-    try:
-        docs_url = "https://jujucharms.com/docs/stable/getting-started"
-        juju_version = juju.version()
-        if int(juju_version[0]) < 2:
-            utils.warning(
-                "Only Juju v2 beta9 and above is supported, "
-                "your currently installed version is {}.\n\n"
-                "Please refer to {} for help on installing "
-                "the correct Juju.".format(juju_version, docs_url))
-            sys.exit(1)
-
-        beta_release_regex = re.compile('^.*beta(\d+)')
-        beta_release_ver = beta_release_regex.search(juju_version)
-        if beta_release_ver is not None:
-            app.log.debug("Beta release found, checking minimum requirements.")
-            if int(beta_release_ver.group(1)) < 10:
-                utils.warning(
-                    "Juju v2 beta10 is the lowest support release. Please "
-                    "make sure you are on the latest release Juju. See {} "
-                    "for more information.".format(docs_url)
-                )
-                sys.exit(1)
-    except Exception as e:
-        utils.warning(e)
-        sys.exit(1)
-
-
 def install_pkgs(pkgs):
     """ Installs the debian package associated with curated spell
     """
@@ -158,18 +128,15 @@ def main():
     spell_dir = os.environ.get('XDG_CACHE_HOME', os.path.join(
         os.path.expanduser('~'),
         '.cache/conjure-up'))
+    if not os.path.isdir(spell_dir):
+        os.makedirs(spell_dir)
 
     app.fetcher = fetcher(opts.spell)
-
-    if os.geteuid() == 0:
-        utils.info("")
-        utils.info("This should _not_ be run as root or with sudo.")
-        utils.info("")
-        sys.exit(1)
 
     # Application Config
     app.argv = opts
     app.log = setup_logging("conjure-up/{}".format(spell),
+                            spell_dir,
                             opts.debug)
 
     # Setup proxy
@@ -180,9 +147,7 @@ def main():
                                    spell,
                                    str(uuid.uuid4())))
 
-    has_valid_juju()
-
-    global_conf_file = '/etc/conjure-up.conf'
+    global_conf_file = os.path.join(spell_dir, 'conjure-up.conf')
     if not os.path.exists(global_conf_file):
         global_conf_file = os.path.join(
             os.path.dirname(__file__), '..', 'etc', 'conjure-up.conf')
@@ -202,8 +167,12 @@ def main():
 
         # Set a general description of spell
         definition = None
-        if path.isfile('/usr/share/conjure-up/keyword-definitions.yaml'):
-            with open('/usr/share/conjure-up/keyword-definitions.yaml') as fp:
+        definition_file = os.environ.get(
+            'SNAP_USER_COMMON', '/usr/share/conjure-up')
+        definition_file = os.path.join(
+            definition_file, 'keyword-definitions.yaml')
+        if path.isfile(definition_file):
+            with open(definition_file) as fp:
                 definitions = yaml.safe_load(fp.read())
                 definition = definitions.get(spell, None)
         if definition is None:
