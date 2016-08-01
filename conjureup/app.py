@@ -24,7 +24,6 @@ import os.path as path
 import sys
 import uuid
 import yaml
-import re
 
 
 def parse_options(argv):
@@ -136,7 +135,7 @@ def main():
     # Application Config
     app.argv = opts
     app.log = setup_logging("conjure-up/{}".format(spell),
-                            spell_dir,
+                            os.path.expanduser('~/conjure-up.log'),
                             opts.debug)
 
     # Setup proxy

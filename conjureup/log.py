@@ -1,11 +1,9 @@
 import logging
-import os.path as path
 from logging.handlers import TimedRotatingFileHandler
 
 
-def setup_logging(prefix, log_dir, debug=False):
-    LOGFILE = path.join(log_dir, 'conjure-up.log')
-    cmdslog = TimedRotatingFileHandler(LOGFILE,
+def setup_logging(prefix, log_file, debug=False):
+    cmdslog = TimedRotatingFileHandler(log_file,
                                        when='D',
                                        interval=1,
                                        backupCount=7)
